@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Lokale Bitmap-zu-SVG-Vektorisierung mit Schwarzweiss- und Farbeinstellungen."
+    />
+    <title>Konturwerk – Bild zu SVG</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#" aria-label="Konturwerk Startseite">
+        <span class="brand-mark" aria-hidden="true">◇</span>
+        <span>Konturwerk</span>
+      </a>
+      <p>Rasterbilder lokal in bearbeitbare SVG-Dateien umwandeln</p>
+    </header>
+
+    <main>
+      <section class="intro" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">BITMAP → VEKTOR</p>
+          <h1 id="page-title">Gib deinen Bildern klare Konturen.</h1>
+          <p class="lede">
+            Lade eine Grafik hoch, reduziere sie auf Schwarzweiß oder zerlege sie in
+            farbige Vektorebenen. Die Verarbeitung erfolgt ausschließlich in deinem Browser.
+          </p>
+        </div>
+        <div class="privacy-note">
+          <span aria-hidden="true">⌁</span>
+          <span>Kein Upload auf einen Server</span>
+        </div>
+      </section>
+
+      <section class="workspace" aria-label="Vektorisierungswerkzeug">
+        <aside class="controls">
+          <div class="control-section">
+            <h2>1. Grafik auswählen</h2>
+            <label class="upload-area" for="image-input">
+              <input id="image-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+              <span class="upload-icon" aria-hidden="true">↑</span>
+              <strong>Grafik auswählen</strong>
+              <span>PNG, JPG, WebP oder GIF</span>
+            </label>
+            <p class="file-name" id="file-name">Noch keine Datei ausgewählt</p>
+          </div>
+
+          <fieldset class="control-section mode-select">
+            <legend>2. Ausgabe wählen</legend>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="monochrome" checked />
+              <span>
+                <strong>Schwarzweiß</strong>
+                <small>Eine präzise, einfarbige Kontur</small>
+              </span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="color" />
+              <span>
+                <strong>Farbige Ebenen</strong>
+                <small>Getrennte Flächen pro Farbe</small>
+              </span>
+            </label>
+          </fieldset>
+
+          <div class="control-section settings" id="monochrome-settings">
+            <h2>3. Kontur anpassen</h2>
+            <label class="range-label" for="threshold">
+              <span>Schwellwert</span><output id="threshold-output">128</output>
+            </label>
+            <input id="threshold" type="range" min="0" max="255" value="128" />
+            <p class="hint">Dunklere Bildbereiche werden gefüllt. Ein niedriger Wert erzeugt weniger Schwarz.</p>
+          </div>
+
+          <div class="control-section settings is-hidden" id="color-settings">
+            <h2>3. Ebenen anpassen</h2>
+            <label class="range-label" for="color-count">
+              <span>Anzahl Farben</span><output id="color-count-output">5</output>
+            </label>
+            <input id="color-count" type="range" min="2" max="20" value="5" />
+            <p class="hint">Ähnliche Bildfarben werden zu einer Vektorfläche zusammengefasst.</p>
+          </div>
+
+          <div class="control-section settings">
+            <label class="range-label" for="detail">
+              <span>Detailgrad</span><output id="detail-output">280 px</output>
+            </label>
+            <input id="detail" type="range" min="96" max="480" step="8" value="280" />
+            <p class="hint">Höhere Werte erhalten mehr Details, erzeugen aber größere SVG-Dateien.</p>
+          </div>
+
+          <button class="primary-button" id="vectorize-button" type="button" disabled>
+            <span aria-hidden="true">✦</span> In SVG umwandeln
+          </button>
+        </aside>
+
+        <section class="preview-panel" aria-labelledby="preview-title">
+          <div class="preview-header">
+            <div>
+              <p class="eyebrow">VORSCHAU</p>
+              <h2 id="preview-title">Bereit für deine Grafik</h2>
+            </div>
+            <span class="status" id="status" role="status">Warte auf Bild</span>
+          </div>
+
+          <div class="canvas-grid">
+            <div class="preview-card">
+              <div class="card-label">Original</div>
+              <div class="image-stage" id="original-stage">
+                <div class="empty-state">
+                  <span aria-hidden="true">▧</span>
+                  <p>Dein Originalbild erscheint hier.</p>
+                </div>
+                <img id="original-image" alt="Hochgeladenes Originalbild" hidden />
+              </div>
+            </div>
+            <div class="preview-card">
+              <div class="card-label">Vektor</div>
+              <div class="image-stage vector-stage" id="vector-stage">
+                <div class="empty-state">
+                  <span aria-hidden="true">◇</span>
+                  <p>Die SVG-Vorschau erscheint hier.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="result-bar" id="result-bar" hidden>
+            <div>
+              <strong id="result-summary">SVG erstellt</strong>
+              <span id="result-details"></span>
+            </div>
+            <button class="secondary-button" id="download-button" type="button">SVG herunterladen</button>
+          </div>
+        </section>
+      </section>
+
+      <section class="how-it-works" aria-labelledby="how-it-works-title">
+        <p class="eyebrow">SO FUNKTIONIERT ES</p>
+        <h2 id="how-it-works-title">Eine SVG, die du weiterbearbeiten kannst.</h2>
+        <div class="steps">
+          <article><span>01</span><h3>Bild wählen</h3><p>Importiere eine Rastergrafik von deinem Gerät.</p></article>
+          <article><span>02</span><h3>Flächen erkennen</h3><p>Konturwerk reduziert und verfolgt die Bildflächen.</p></article>
+          <article><span>03</span><h3>SVG exportieren</h3><p>Öffne die Datei in Figma, Illustrator oder Inkscape.</p></article>
+        </div>
+      </section>
+    </main>
+
+    <footer>Konturwerk verarbeitet deine Bilder lokal im Browser.</footer>
+    <script src="app.js"></script>
+  </body>
+</html>
