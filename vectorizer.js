@@ -109,7 +109,78 @@
       }
       labels[i] = label;
     }
-    return { labels, palette };
+    return { labels: resolveBlendPixels(data, width, height, labels, palette), palette };
+  }
+
+  /**
+   * Übergangspixel an Kanten (z. B. Grau zwischen schwarzer Linie und weißem
+   * Grund) liegen farblich oft zufällig nahe an einer ganz anderen Palettenfarbe
+   * und erzeugen falsche Farbsäume. Lässt sich ein Pixel deutlich besser als
+   * Mischung zweier Farben aus seiner 5×5-Umgebung erklären, bekommt es die
+   * näher liegende dieser beiden Farben.
+   */
+  function resolveBlendPixels(data, width, height, labels, palette) {
+    const out = new Int16Array(labels);
+    const local = new Int16Array(25);
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const i = y * width + x;
+        const own = labels[i];
+        if (own < 0) continue;
+
+        let count = 0;
+        let mixed = false;
+        for (let dy = -2; dy <= 2; dy += 1) {
+          const ny = y + dy;
+          if (ny < 0 || ny >= height) continue;
+          for (let dx = -2; dx <= 2; dx += 1) {
+            const nx = x + dx;
+            if (nx < 0 || nx >= width) continue;
+            const v = labels[ny * width + nx];
+            if (v < 0 || v === own) continue;
+            mixed = true;
+            let j = 0;
+            while (j < count && local[j] !== v) j += 1;
+            if (j === count) local[count++] = v;
+          }
+        }
+        if (!mixed || count < 2) continue; // nur ein Nachbar: eigene Farbe ist plausibel
+
+        const p = i * 4;
+        const pixel = [data[p], data[p + 1], data[p + 2]];
+        const c = palette[own];
+        const single = sq(pixel[0] - c[0]) + sq(pixel[1] - c[1]) + sq(pixel[2] - c[2]);
+        if (single < 15 * 15) continue; // Pixel passt gut zur eigenen Farbe
+
+        let best = single * 0.25; // Mischung muss deutlich besser passen
+        let choice = -1;
+        for (let a = 0; a < count; a += 1) {
+          for (let b = a + 1; b < count; b += 1) {
+            const ca = palette[local[a]];
+            const cb = palette[local[b]];
+            const d = segmentDistanceSq3(pixel, ca, cb);
+            if (d < best) {
+              best = d;
+              const da = sq(pixel[0] - ca[0]) + sq(pixel[1] - ca[1]) + sq(pixel[2] - ca[2]);
+              const db = sq(pixel[0] - cb[0]) + sq(pixel[1] - cb[1]) + sq(pixel[2] - cb[2]);
+              choice = da <= db ? local[a] : local[b];
+            }
+          }
+        }
+        if (choice >= 0) out[i] = choice;
+      }
+    }
+    return out;
+  }
+
+  function segmentDistanceSq3(p, a, b) {
+    const d0 = b[0] - a[0];
+    const d1 = b[1] - a[1];
+    const d2 = b[2] - a[2];
+    const length = d0 * d0 + d1 * d1 + d2 * d2;
+    let t = length ? ((p[0] - a[0]) * d0 + (p[1] - a[1]) * d1 + (p[2] - a[2]) * d2) / length : 0;
+    t = Math.max(0, Math.min(1, t));
+    return sq(p[0] - a[0] - t * d0) + sq(p[1] - a[1] - t * d1) + sq(p[2] - a[2] - t * d2);
   }
 
   /**
