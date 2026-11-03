@@ -34,7 +34,7 @@ statischen Hoster mit HTTPS ablegen (Netlify, Cloudflare Pages …).
 - **Farbige Ebenen** (2–24 Farben) oder **Schwarzweiß** mit Schwellwert
 - **Kanten:** *Weich* (Kurven), *Kantig* (Polygone) oder *Pixel* (pixelgenau)
 - **Detailgrad** und **Störflecken entfernen** zum Abwägen zwischen Detailtreue
-  und Dateigröße
+  und Dateigröße; kleinere Bilder werden dabei bis zu 3× vergrößert
 - Die Vorschau aktualisiert sich bei jeder Änderung automatisch; mit einem Tipp
   darauf öffnet sie sich im Vollbild (mit zwei Fingern zoomen).
 - **In Dateien sichern / Teilen:** öffnet das iOS-Teilen-Menü
@@ -86,6 +86,7 @@ Die aktuelle Version steht in der App oben neben dem Namen und in der
 Fußzeile. Bei einer Änderung `APP_VERSION` in `app.js`, `CACHE` in `sw.js` und
 die beiden Angaben in `index.html` gemeinsam erhöhen (ein Test prüft das).
 
+- **1.4.0** – kleine Bilder werden vor dem Nachzeichnen vergrößert (glattere Konturen)
 - **1.3.1** – Updates kommen sofort an (kein 10-Minuten-Browsercache mehr)
 - **1.3.0** – Versionsnummer in der App sichtbar
 - **1.2.0** – keine Fremdfarben zwischen Linien bei transparentem Hintergrund
