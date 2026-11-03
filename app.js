@@ -1,7 +1,7 @@
 "use strict";
 
 // Bei jeder Änderung erhöhen – zusammen mit CACHE in sw.js (ein Test prüft das).
-const APP_VERSION = "1.3.1";
+const APP_VERSION = "1.4.0";
 
 const state = {
   image: null,
@@ -177,7 +177,9 @@ function runVectorization() {
 }
 
 function rasterizeImage(image, maxDimension) {
-  const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+  // Kleine Bilder werden bis zu 3× vergrößert: Die weich interpolierten Kanten
+  // ergeben beim Nachzeichnen glattere Konturen und genauere Details.
+  const scale = Math.min(3, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
   const width = Math.max(1, Math.round(image.naturalWidth * scale));
   const height = Math.max(1, Math.round(image.naturalHeight * scale));
   const canvas = document.createElement("canvas");
