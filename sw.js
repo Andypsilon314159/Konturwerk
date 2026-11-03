@@ -1,5 +1,5 @@
 /* Service Worker: hält die App offline verfügbar (Netz zuerst, Cache als Rückfall). */
-const CACHE = "konturwerk-v2";
+const CACHE = "konturwerk-1.3.0"; // muss zu APP_VERSION in app.js passen
 const ASSETS = [
   "./",
   "index.html",

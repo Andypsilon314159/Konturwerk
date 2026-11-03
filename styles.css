@@ -36,6 +36,8 @@ body {
 
 .site-header p { color: var(--muted); font-size: .87rem; margin: 0; }
 .brand { display: inline-flex; align-items: center; gap: 9px; color: var(--ink); text-decoration: none; font-weight: 750; letter-spacing: -.03em; font-size: 1.2rem; }
+.version-badge { margin-right: auto; margin-left: 10px; padding: 3px 8px; border: 1px solid var(--line); border-radius: 99px; color: var(--muted); font-size: .7rem; font-weight: 700; white-space: nowrap; }
+.footer-version { float: right; }
 .brand-mark { color: #e75e42; font-size: 1.7rem; line-height: 1; }
 
 main { padding: 64px 28px 48px; }
