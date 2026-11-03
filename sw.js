@@ -1,5 +1,5 @@
 /* Service Worker: hält die App offline verfügbar (Netz zuerst, Cache als Rückfall). */
-const CACHE = "konturwerk-1.3.0"; // muss zu APP_VERSION in app.js passen
+const CACHE = "konturwerk-1.3.1"; // muss zu APP_VERSION in app.js passen
 const ASSETS = [
   "./",
   "index.html",
@@ -29,8 +29,10 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET" || new URL(event.request.url).origin !== self.location.origin) return;
   // Netz zuerst, damit Updates ankommen; ohne Verbindung aus dem Cache.
+  // "no-cache" umgeht den HTTP-Cache des Browsers (GitHub Pages: 10 Minuten),
+  // fragt aber per ETag nach – unveränderte Dateien werden nicht neu geladen.
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: "no-cache" })
       .then((response) => {
         if (response.ok) {
           const copy = response.clone();

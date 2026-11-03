@@ -1,7 +1,7 @@
 "use strict";
 
 // Bei jeder Änderung erhöhen – zusammen mit CACHE in sw.js (ein Test prüft das).
-const APP_VERSION = "1.3.0";
+const APP_VERSION = "1.3.1";
 
 const state = {
   image: null,
@@ -340,5 +340,9 @@ document.querySelectorAll("[data-app-version]").forEach((element) => {
 })();
 
 if ("serviceWorker" in navigator && window.isSecureContext) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" })
+      .then((registration) => registration.update())
+      .catch(() => {});
+  });
 }

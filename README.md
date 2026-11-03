@@ -86,6 +86,7 @@ Die aktuelle Version steht in der App oben neben dem Namen und in der
 Fußzeile. Bei einer Änderung `APP_VERSION` in `app.js`, `CACHE` in `sw.js` und
 die beiden Angaben in `index.html` gemeinsam erhöhen (ein Test prüft das).
 
+- **1.3.1** – Updates kommen sofort an (kein 10-Minuten-Browsercache mehr)
 - **1.3.0** – Versionsnummer in der App sichtbar
 - **1.2.0** – keine Fremdfarben zwischen Linien bei transparentem Hintergrund
 - **1.1.0** – keine Fremdfarben durch graue Übergangspixel an Linienkanten
