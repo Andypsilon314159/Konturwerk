@@ -92,3 +92,28 @@ test("Unterste Ebene deckt das Bild bis zum Rand ab", () => {
     assert.equal(Math.max(...ys), 20, smoothing);
   }
 });
+
+test("Graue Übergänge zwischen schwarzen Linien erzeugen keine Fremdfarbe", () => {
+  // Weiß mit weichen schwarzen Streifen, daneben eine olivfarbene Fläche,
+  // deren Farbe näher an mittlerem Grau liegt als Schwarz oder Weiß.
+  const raster = makeRaster(120, 60, (x) => {
+    if (x >= 80) return [125, 137, 90];
+    if (x >= 64) return [250, 250, 250];
+    const phase = x % 10;
+    const v = phase < 3 ? 20 : phase === 3 || phase === 9 ? 130 : phase === 4 || phase === 8 ? 200 : 250;
+    return [v, v, v];
+  });
+  const { layers } = vectorize(raster, { colorCount: 3, smoothing: "pixel", minArea: 0 });
+  const olive = layers.find((l) => l.color === "#7d895a");
+  assert.ok(olive, layers.map((l) => l.color).join());
+  // Oliv darf nur die rechte Fläche belegen (60 × 40 = 2400 Pixel).
+  assert.equal(olive.pixels, 40 * 60);
+});
+
+test("Hohe Auflösung bleibt schnell", () => {
+  const raster = makeRaster(1600, 1200, (x, y) => (((x >> 4) + (y >> 4)) % 3 === 0 ? [20, 20, 20] : (x + y) % 7 ? [250, 250, 250] : [128, 128, 128]));
+  const t = Date.now();
+  vectorize(raster, { colorCount: 8 });
+  const ms = Date.now() - t;
+  assert.ok(ms < 8000, `${ms} ms`);
+});
