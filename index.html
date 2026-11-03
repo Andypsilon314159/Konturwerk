@@ -2,17 +2,22 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      name="description"
-      content="Lokale Bitmap-zu-SVG-Vektorisierung mit Schwarzweiss- und Farbeinstellungen."
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Farbige Bilder lokal auf dem iPhone in bearbeitbare SVG-Vektorgrafiken umwandeln." />
+    <meta name="theme-color" content="#f7f6f1" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Konturwerk" />
     <title>Konturwerk – Bild zu SVG</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <header class="site-header">
-      <a class="brand" href="#" aria-label="Konturwerk Startseite">
+      <a class="brand" href="./" aria-label="Konturwerk Startseite">
         <span class="brand-mark" aria-hidden="true">◇</span>
         <span>Konturwerk</span>
       </a>
@@ -25,71 +30,96 @@
           <p class="eyebrow">BITMAP → VEKTOR</p>
           <h1 id="page-title">Gib deinen Bildern klare Konturen.</h1>
           <p class="lede">
-            Lade eine Grafik hoch, reduziere sie auf Schwarzweiß oder zerlege sie in
-            farbige Vektorebenen. Die Verarbeitung erfolgt ausschließlich in deinem Browser.
+            Wähle ein Foto oder eine Grafik, zerlege sie in farbige Vektorflächen und sichere
+            das Ergebnis als SVG. Alles passiert direkt auf deinem Gerät.
           </p>
         </div>
         <div class="privacy-note">
           <span aria-hidden="true">⌁</span>
-          <span>Kein Upload auf einen Server</span>
+          <span>Kein Upload auf einen Server · funktioniert offline</span>
         </div>
       </section>
+
+      <aside class="install-hint" id="install-hint" hidden>
+        <strong>Als App installieren:</strong>
+        Tippe in Safari auf <span class="share-glyph" aria-label="Teilen">⬆︎</span> „Teilen“ und dann auf
+        „Zum Home-Bildschirm“. Konturwerk startet danach wie eine normale App – auch ohne Internet.
+        <button type="button" class="hint-close" id="install-hint-close" aria-label="Hinweis schließen">×</button>
+      </aside>
 
       <section class="workspace" aria-label="Vektorisierungswerkzeug">
         <aside class="controls">
           <div class="control-section">
-            <h2>1. Grafik auswählen</h2>
+            <h2>1. Bild auswählen</h2>
             <label class="upload-area" for="image-input">
-              <input id="image-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+              <input id="image-input" type="file" accept="image/*" />
               <span class="upload-icon" aria-hidden="true">↑</span>
-              <strong>Grafik auswählen</strong>
-              <span>PNG, JPG, WebP oder GIF</span>
+              <strong>Foto oder Datei wählen</strong>
+              <span>Fotomediathek, Kamera oder Dateien</span>
             </label>
-            <p class="file-name" id="file-name">Noch keine Datei ausgewählt</p>
+            <p class="file-name" id="file-name">Noch kein Bild ausgewählt</p>
           </div>
 
           <fieldset class="control-section mode-select">
             <legend>2. Ausgabe wählen</legend>
             <label class="mode-option">
-              <input type="radio" name="mode" value="monochrome" checked />
+              <input type="radio" name="mode" value="color" checked />
+              <span>
+                <strong>Farbige Ebenen</strong>
+                <small>Getrennte Vektorflächen pro Farbe</small>
+              </span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="monochrome" />
               <span>
                 <strong>Schwarzweiß</strong>
                 <small>Eine präzise, einfarbige Kontur</small>
               </span>
             </label>
-            <label class="mode-option">
-              <input type="radio" name="mode" value="color" />
-              <span>
-                <strong>Farbige Ebenen</strong>
-                <small>Getrennte Flächen pro Farbe</small>
-              </span>
-            </label>
           </fieldset>
 
-          <div class="control-section settings" id="monochrome-settings">
-            <h2>3. Kontur anpassen</h2>
+          <div class="control-section settings" id="color-settings">
+            <h2>3. Feinabstimmung</h2>
+            <label class="range-label" for="color-count">
+              <span>Anzahl Farben</span><output id="color-count-output">8</output>
+            </label>
+            <input id="color-count" type="range" min="2" max="24" value="8" />
+            <p class="hint">Ähnliche Bildfarben werden zu einer Fläche zusammengefasst.</p>
+            <label class="check-option">
+              <input id="drop-white" type="checkbox" />
+              <span>Weißen Hintergrund transparent lassen</span>
+            </label>
+          </div>
+
+          <div class="control-section settings is-hidden" id="monochrome-settings">
+            <h2>3. Feinabstimmung</h2>
             <label class="range-label" for="threshold">
               <span>Schwellwert</span><output id="threshold-output">128</output>
             </label>
-            <input id="threshold" type="range" min="0" max="255" value="128" />
-            <p class="hint">Dunklere Bildbereiche werden gefüllt. Ein niedriger Wert erzeugt weniger Schwarz.</p>
+            <input id="threshold" type="range" min="1" max="254" value="128" />
+            <p class="hint">Bereiche, die dunkler als der Schwellwert sind, werden gefüllt.</p>
           </div>
 
-          <div class="control-section settings is-hidden" id="color-settings">
-            <h2>3. Ebenen anpassen</h2>
-            <label class="range-label" for="color-count">
-              <span>Anzahl Farben</span><output id="color-count-output">5</output>
-            </label>
-            <input id="color-count" type="range" min="2" max="20" value="5" />
-            <p class="hint">Ähnliche Bildfarben werden zu einer Vektorfläche zusammengefasst.</p>
-          </div>
+          <fieldset class="control-section">
+            <legend>Kanten</legend>
+            <div class="segmented" role="radiogroup">
+              <label><input type="radio" name="smoothing" value="curves" checked /><span>Weich</span></label>
+              <label><input type="radio" name="smoothing" value="polygon" /><span>Kantig</span></label>
+              <label><input type="radio" name="smoothing" value="pixel" /><span>Pixel</span></label>
+            </div>
+            <p class="hint">„Pixel“ eignet sich für Pixel-Art, „Weich“ für Logos und Fotos.</p>
+          </fieldset>
 
           <div class="control-section settings">
             <label class="range-label" for="detail">
-              <span>Detailgrad</span><output id="detail-output">280 px</output>
+              <span>Detailgrad</span><output id="detail-output">800 px</output>
             </label>
-            <input id="detail" type="range" min="96" max="480" step="8" value="280" />
-            <p class="hint">Höhere Werte erhalten mehr Details, erzeugen aber größere SVG-Dateien.</p>
+            <input id="detail" type="range" min="200" max="1600" step="50" value="800" />
+            <label class="range-label spaced" for="min-area">
+              <span>Störflecken entfernen</span><output id="min-area-output">6 px²</output>
+            </label>
+            <input id="min-area" type="range" min="0" max="200" step="2" value="6" />
+            <p class="hint">Mehr Detail erhält feine Strukturen, erzeugt aber größere Dateien.</p>
           </div>
 
           <button class="primary-button" id="vectorize-button" type="button" disabled>
@@ -101,39 +131,45 @@
           <div class="preview-header">
             <div>
               <p class="eyebrow">VORSCHAU</p>
-              <h2 id="preview-title">Bereit für deine Grafik</h2>
+              <h2 id="preview-title">Bereit für dein Bild</h2>
             </div>
             <span class="status" id="status" role="status">Warte auf Bild</span>
           </div>
 
           <div class="canvas-grid">
             <div class="preview-card">
-              <div class="card-label">Original</div>
-              <div class="image-stage" id="original-stage">
-                <div class="empty-state">
-                  <span aria-hidden="true">▧</span>
-                  <p>Dein Originalbild erscheint hier.</p>
-                </div>
-                <img id="original-image" alt="Hochgeladenes Originalbild" hidden />
-              </div>
+              <div class="card-label">Vektor (SVG)</div>
+              <button class="image-stage vector-stage" id="vector-stage" type="button" aria-label="Vektorvorschau im Vollbild öffnen" disabled>
+                <span class="empty-state">
+                  <span aria-hidden="true">◇</span>
+                  <span>Die SVG-Vorschau erscheint hier.</span>
+                </span>
+                <img id="vector-image" alt="Vorschau der erzeugten Vektorgrafik" hidden />
+              </button>
             </div>
             <div class="preview-card">
-              <div class="card-label">Vektor</div>
-              <div class="image-stage vector-stage" id="vector-stage">
-                <div class="empty-state">
-                  <span aria-hidden="true">◇</span>
-                  <p>Die SVG-Vorschau erscheint hier.</p>
-                </div>
+              <div class="card-label">Original</div>
+              <div class="image-stage" id="original-stage">
+                <span class="empty-state">
+                  <span aria-hidden="true">▧</span>
+                  <span>Dein Originalbild erscheint hier.</span>
+                </span>
+                <img id="original-image" alt="Ausgewähltes Originalbild" hidden />
               </div>
             </div>
           </div>
 
           <div class="result-bar" id="result-bar" hidden>
-            <div>
+            <div class="result-info">
               <strong id="result-summary">SVG erstellt</strong>
               <span id="result-details"></span>
+              <div class="swatches" id="swatches" aria-label="Farben der Vektorebenen"></div>
             </div>
-            <button class="secondary-button" id="download-button" type="button">SVG herunterladen</button>
+            <div class="result-actions">
+              <button class="primary-button" id="share-button" type="button">In Dateien sichern / Teilen</button>
+              <button class="secondary-button" id="download-button" type="button">SVG herunterladen</button>
+              <button class="secondary-button" id="png-button" type="button">Als PNG für Fotos</button>
+            </div>
           </div>
         </section>
       </section>
@@ -142,14 +178,24 @@
         <p class="eyebrow">SO FUNKTIONIERT ES</p>
         <h2 id="how-it-works-title">Eine SVG, die du weiterbearbeiten kannst.</h2>
         <div class="steps">
-          <article><span>01</span><h3>Bild wählen</h3><p>Importiere eine Rastergrafik von deinem Gerät.</p></article>
-          <article><span>02</span><h3>Flächen erkennen</h3><p>Konturwerk reduziert und verfolgt die Bildflächen.</p></article>
-          <article><span>03</span><h3>SVG exportieren</h3><p>Öffne die Datei in Figma, Illustrator oder Inkscape.</p></article>
+          <article><span>01</span><h3>Bild wählen</h3><p>Nimm ein Foto aus der Mediathek, der Kamera oder der Dateien-App.</p></article>
+          <article><span>02</span><h3>Flächen erkennen</h3><p>Konturwerk reduziert die Farben und verfolgt jede Fläche als Vektorpfad.</p></article>
+          <article><span>03</span><h3>SVG sichern</h3><p>Speichere die Datei in „Dateien“, teile sie per AirDrop oder öffne sie in Affinity, Illustrator oder Inkscape.</p></article>
         </div>
       </section>
     </main>
 
-    <footer>Konturwerk verarbeitet deine Bilder lokal im Browser.</footer>
+    <footer>Konturwerk verarbeitet deine Bilder lokal auf deinem Gerät.</footer>
+
+    <dialog class="viewer" id="viewer" aria-label="Vektorgrafik im Vollbild">
+      <div class="viewer-bar">
+        <span>Vorschau · zum Zoomen mit zwei Fingern ziehen</span>
+        <button type="button" class="secondary-button" id="viewer-close">Schließen</button>
+      </div>
+      <div class="viewer-stage"><img id="viewer-image" alt="Erzeugte Vektorgrafik in voller Größe" /></div>
+    </dialog>
+
+    <script src="vectorizer.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

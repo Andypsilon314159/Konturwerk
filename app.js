@@ -4,110 +4,173 @@ const state = {
   image: null,
   imageName: "",
   svgText: "",
+  svgUrl: "",
+  pngBlob: null,
+  jobId: 0,
+  timer: 0,
 };
 
+const $ = (selector) => document.querySelector(selector);
 const elements = {
-  imageInput: document.querySelector("#image-input"),
-  fileName: document.querySelector("#file-name"),
-  originalImage: document.querySelector("#original-image"),
-  originalStage: document.querySelector("#original-stage"),
-  vectorStage: document.querySelector("#vector-stage"),
-  vectorizeButton: document.querySelector("#vectorize-button"),
-  downloadButton: document.querySelector("#download-button"),
-  resultBar: document.querySelector("#result-bar"),
-  resultSummary: document.querySelector("#result-summary"),
-  resultDetails: document.querySelector("#result-details"),
-  status: document.querySelector("#status"),
-  threshold: document.querySelector("#threshold"),
-  thresholdOutput: document.querySelector("#threshold-output"),
-  colorCount: document.querySelector("#color-count"),
-  colorCountOutput: document.querySelector("#color-count-output"),
-  detail: document.querySelector("#detail"),
-  detailOutput: document.querySelector("#detail-output"),
-  monochromeSettings: document.querySelector("#monochrome-settings"),
-  colorSettings: document.querySelector("#color-settings"),
+  imageInput: $("#image-input"),
+  fileName: $("#file-name"),
+  originalImage: $("#original-image"),
+  vectorStage: $("#vector-stage"),
+  vectorImage: $("#vector-image"),
+  vectorizeButton: $("#vectorize-button"),
+  shareButton: $("#share-button"),
+  downloadButton: $("#download-button"),
+  pngButton: $("#png-button"),
+  resultBar: $("#result-bar"),
+  resultSummary: $("#result-summary"),
+  resultDetails: $("#result-details"),
+  swatches: $("#swatches"),
+  previewTitle: $("#preview-title"),
+  status: $("#status"),
+  threshold: $("#threshold"),
+  thresholdOutput: $("#threshold-output"),
+  colorCount: $("#color-count"),
+  colorCountOutput: $("#color-count-output"),
+  dropWhite: $("#drop-white"),
+  detail: $("#detail"),
+  detailOutput: $("#detail-output"),
+  minArea: $("#min-area"),
+  minAreaOutput: $("#min-area-output"),
+  monochromeSettings: $("#monochrome-settings"),
+  colorSettings: $("#color-settings"),
+  viewer: $("#viewer"),
+  viewerImage: $("#viewer-image"),
+  viewerClose: $("#viewer-close"),
+  installHint: $("#install-hint"),
+  installHintClose: $("#install-hint-close"),
 };
+
+/* ---------- Hintergrundverarbeitung ---------- */
+
+let worker = null;
+try {
+  worker = new Worker("worker.js");
+  worker.addEventListener("message", (event) => handleResult(event.data));
+  worker.addEventListener("error", () => {
+    worker = null;
+    runVectorization(); // laufenden Auftrag im Hauptthread wiederholen
+  });
+} catch {
+  worker = null; // z. B. bei file:// – dann im Hauptthread rechnen
+}
+
+/* ---------- Ereignisse ---------- */
 
 elements.imageInput.addEventListener("change", loadImage);
-elements.vectorizeButton.addEventListener("click", vectorize);
-elements.downloadButton.addEventListener("click", downloadSvg);
-elements.threshold.addEventListener("input", () => {
-  elements.thresholdOutput.value = elements.threshold.value;
-});
-elements.colorCount.addEventListener("input", () => {
-  elements.colorCountOutput.value = elements.colorCount.value;
-});
-elements.detail.addEventListener("input", () => {
-  elements.detailOutput.value = `${elements.detail.value} px`;
-});
-document.querySelectorAll('input[name="mode"]').forEach((input) => {
-  input.addEventListener("change", updateModeControls);
+elements.vectorizeButton.addEventListener("click", () => runVectorization());
+elements.shareButton.addEventListener("click", shareSvg);
+elements.downloadButton.addEventListener("click", () => downloadBlob(svgBlob(), svgFileName()));
+elements.pngButton.addEventListener("click", sharePng);
+elements.vectorStage.addEventListener("click", openViewer);
+elements.viewerClose.addEventListener("click", () => elements.viewer.close());
+elements.viewer.addEventListener("click", (event) => {
+  if (event.target === elements.viewer) elements.viewer.close();
 });
 
+bindOutput(elements.threshold, elements.thresholdOutput, (v) => v);
+bindOutput(elements.colorCount, elements.colorCountOutput, (v) => v);
+bindOutput(elements.detail, elements.detailOutput, (v) => `${v} px`);
+bindOutput(elements.minArea, elements.minAreaOutput, (v) => `${v} px²`);
+elements.dropWhite.addEventListener("change", scheduleVectorization);
+document.querySelectorAll('input[name="mode"], input[name="smoothing"]').forEach((input) => {
+  input.addEventListener("change", () => {
+    updateModeControls();
+    scheduleVectorization();
+  });
+});
+
+function bindOutput(input, output, format) {
+  input.addEventListener("input", () => {
+    output.value = format(input.value);
+    scheduleVectorization();
+  });
+}
+
 function updateModeControls() {
-  const colorMode = selectedMode() === "color";
+  const colorMode = selectedValue("mode") === "color";
   elements.monochromeSettings.classList.toggle("is-hidden", colorMode);
   elements.colorSettings.classList.toggle("is-hidden", !colorMode);
 }
 
-function selectedMode() {
-  return document.querySelector('input[name="mode"]:checked').value;
+function selectedValue(name) {
+  return document.querySelector(`input[name="${name}"]:checked`).value;
 }
+
+/* ---------- Bild laden ---------- */
 
 function loadImage(event) {
   const [file] = event.target.files;
   if (!file) return;
 
-  const reader = new FileReader();
-  reader.addEventListener("load", () => {
-    const image = new Image();
-    image.addEventListener("load", () => {
-      state.image = image;
-      state.imageName = file.name.replace(/\.[^.]+$/, "") || "vektorgrafik";
-      elements.originalImage.src = reader.result;
-      elements.originalImage.hidden = false;
-      elements.originalStage.querySelector(".empty-state")?.remove();
-      elements.fileName.textContent = `${file.name} · ${image.naturalWidth} × ${image.naturalHeight} px`;
-      elements.vectorizeButton.disabled = false;
-      elements.status.textContent = "Bereit zur Umwandlung";
-      elements.status.className = "status";
-      elements.resultBar.hidden = true;
-      elements.vectorStage.innerHTML = emptyState("Die neue SVG-Vorschau erscheint hier.");
-    });
-    image.src = reader.result;
-  });
-  reader.readAsDataURL(file);
-}
-
-function emptyState(text) {
-  return `<div class="empty-state"><span aria-hidden="true">◇</span><p>${text}</p></div>`;
-}
-
-function vectorize() {
-  if (!state.image) return;
-
-  elements.vectorizeButton.disabled = true;
-  elements.status.textContent = "Vektorisierung läuft …";
-  elements.status.className = "status is-working";
-
-  // Let the status update render before doing the CPU-intensive contour extraction.
-  window.setTimeout(() => {
-    const raster = rasterizeImage(state.image, Number(elements.detail.value));
-    const result = selectedMode() === "color"
-      ? colorVectorization(raster, Number(elements.colorCount.value))
-      : monochromeVectorization(raster, Number(elements.threshold.value));
-    state.svgText = buildSvg(raster.width, raster.height, result.layers);
-    displaySvg(state.svgText);
-
-    elements.resultSummary.textContent = selectedMode() === "color"
-      ? `${result.layers.length} farbige Vektorebenen erstellt`
-      : "Schwarzweiß-Vektorgrafik erstellt";
-    elements.resultDetails.textContent = `${raster.width} × ${raster.height} px Arbeitsauflösung · ${result.pathCount.toLocaleString("de-DE")} Konturen`;
-    elements.resultBar.hidden = false;
+  const url = URL.createObjectURL(file);
+  const image = new Image();
+  image.addEventListener("load", () => {
+    if (state.image) URL.revokeObjectURL(state.image.src);
+    state.image = image;
+    state.imageName = file.name.replace(/\.[^.]+$/, "") || "vektorgrafik";
+    elements.originalImage.src = url;
+    elements.originalImage.hidden = false;
+    elements.originalImage.previousElementSibling?.remove();
+    elements.fileName.textContent = `${file.name} · ${image.naturalWidth} × ${image.naturalHeight} px`;
     elements.vectorizeButton.disabled = false;
-    elements.status.textContent = "SVG fertig";
-    elements.status.className = "status is-ready";
-  }, 20);
+    runVectorization();
+  });
+  image.addEventListener("error", () => {
+    URL.revokeObjectURL(url);
+    setStatus("Bildformat wird nicht unterstützt", "is-error");
+  });
+  image.src = url;
+}
+
+/* ---------- Vektorisierung ---------- */
+
+function scheduleVectorization() {
+  if (!state.image) return;
+  window.clearTimeout(state.timer);
+  state.timer = window.setTimeout(runVectorization, 300);
+}
+
+function runVectorization() {
+  if (!state.image) return;
+  window.clearTimeout(state.timer);
+  const id = ++state.jobId;
+  setStatus("Vektorisierung läuft …", "is-working");
+  elements.vectorizeButton.disabled = true;
+
+  const raster = rasterizeImage(state.image, Number(elements.detail.value));
+  const options = {
+    mode: selectedValue("mode"),
+    colorCount: Number(elements.colorCount.value),
+    threshold: Number(elements.threshold.value),
+    smoothing: selectedValue("smoothing"),
+    minArea: Number(elements.minArea.value),
+    dropWhite: elements.dropWhite.checked,
+  };
+  const svgOptions = {
+    outputWidth: state.image.naturalWidth,
+    outputHeight: state.image.naturalHeight,
+    title: state.imageName,
+  };
+  const meta = { width: raster.width, height: raster.height, mode: options.mode };
+
+  if (worker) {
+    state.pendingMeta = meta;
+    worker.postMessage({ id, raster, options, svgOptions }, [raster.data.buffer]);
+  } else {
+    // Kurz warten, damit der Status sichtbar wird, bevor der Hauptthread rechnet.
+    window.setTimeout(() => {
+      try {
+        handleResult({ id, ...window.Konturwerk.vectorizeToSvg(raster, options, svgOptions) }, meta);
+      } catch (error) {
+        handleResult({ id, error: String(error.message || error) }, meta);
+      }
+    }, 30);
+  }
 }
 
 function rasterizeImage(image, maxDimension) {
@@ -118,222 +181,157 @@ function rasterizeImage(image, maxDimension) {
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext("2d", { willReadFrequently: true });
-  context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, width, height);
+  context.imageSmoothingQuality = "high";
   context.drawImage(image, 0, 0, width, height);
-  return { width, height, data: context.getImageData(0, 0, width, height).data };
+  const { data } = context.getImageData(0, 0, width, height);
+  return { width, height, data };
 }
 
-function monochromeVectorization(raster, threshold) {
-  const mask = new Uint8Array(raster.width * raster.height);
-  for (let pixel = 0, index = 0; pixel < raster.data.length; pixel += 4, index += 1) {
-    const grayscale = Math.round(
-      raster.data[pixel] * 0.2126 +
-      raster.data[pixel + 1] * 0.7152 +
-      raster.data[pixel + 2] * 0.0722,
-    );
-    mask[index] = grayscale < threshold ? 1 : 0;
-  }
-  const paths = traceMask(mask, raster.width, raster.height);
-  return {
-    layers: [{ name: "Schwarz", color: "#000000", paths }],
-    pathCount: paths.length,
-  };
-}
-
-function colorVectorization(raster, colorCount) {
-  const pixels = [];
-  for (let index = 0; index < raster.width * raster.height; index += 1) {
-    const offset = index * 4;
-    const alpha = raster.data[offset + 3];
-    const pixel = [raster.data[offset], raster.data[offset + 1], raster.data[offset + 2]];
-    if (alpha < 8 || isNearWhite(pixel)) continue;
-    pixels.push(pixel);
+function handleResult(message, meta = state.pendingMeta) {
+  if (message.id !== state.jobId) return; // veraltetes Ergebnis
+  elements.vectorizeButton.disabled = false;
+  if (message.error) {
+    setStatus("Fehler bei der Umwandlung", "is-error");
+    elements.resultDetails.textContent = message.error;
+    return;
   }
 
-  const palette = quantize(pixels, colorCount);
-  const masks = palette.map(() => new Uint8Array(raster.width * raster.height));
+  state.svgText = message.svg;
+  state.pngBlob = null;
+  if (state.svgUrl) URL.revokeObjectURL(state.svgUrl);
+  state.svgUrl = URL.createObjectURL(svgBlob());
 
-  for (let index = 0; index < raster.width * raster.height; index += 1) {
-    const offset = index * 4;
-    const alpha = raster.data[offset + 3];
-    const pixel = [raster.data[offset], raster.data[offset + 1], raster.data[offset + 2]];
-    if (alpha < 8 || isNearWhite(pixel)) continue;
-    let closestIndex = 0;
-    let closestDistance = Infinity;
-    palette.forEach((color, colorIndex) => {
-      const distance = squaredDistance(pixel, color);
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closestIndex = colorIndex;
-      }
-    });
-    masks[closestIndex][index] = 1;
+  elements.vectorImage.src = state.svgUrl;
+  elements.vectorImage.hidden = false;
+  elements.vectorStage.querySelector(".empty-state")?.remove();
+  elements.vectorStage.disabled = false;
+
+  const { summary } = message;
+  const sizeKb = new Blob([state.svgText]).size / 1024;
+  elements.previewTitle.textContent = state.imageName;
+  elements.resultSummary.textContent = meta.mode === "color"
+    ? `${summary.colors.length} Farbebenen · ${summary.pathCount.toLocaleString("de-DE")} Pfade`
+    : `Schwarzweiß · ${summary.pathCount.toLocaleString("de-DE")} Pfade`;
+  elements.resultDetails.textContent =
+    `${formatSize(sizeKb)} SVG · Arbeitsauflösung ${meta.width} × ${meta.height} px`;
+  elements.swatches.replaceChildren(...summary.colors.map((color) => {
+    const swatch = document.createElement("span");
+    swatch.className = "swatch";
+    swatch.style.background = color;
+    swatch.title = color;
+    return swatch;
+  }));
+  elements.resultBar.hidden = false;
+  setStatus("SVG fertig", "is-ready");
+  preparePng(message.id);
+}
+
+function setStatus(text, className = "") {
+  elements.status.textContent = text;
+  elements.status.className = `status ${className}`.trim();
+}
+
+function formatSize(kb) {
+  return kb >= 1024 ? `${(kb / 1024).toLocaleString("de-DE", { maximumFractionDigits: 1 })} MB`
+    : `${Math.max(1, Math.round(kb)).toLocaleString("de-DE")} KB`;
+}
+
+/* ---------- Sichern und Teilen ---------- */
+
+function svgBlob() {
+  return new Blob([state.svgText], { type: "image/svg+xml" });
+}
+
+function svgFileName() {
+  return `${state.imageName || "vektorgrafik"}-vektor.svg`;
+}
+
+async function shareSvg() {
+  const file = new File([state.svgText], svgFileName(), { type: "image/svg+xml" });
+  if (!(await shareFile(file))) downloadBlob(file, file.name);
+}
+
+async function sharePng() {
+  if (!state.pngBlob) {
+    elements.pngButton.textContent = "PNG wird erstellt …";
+    return;
   }
-
-  const layers = palette.map((color, index) => ({
-    name: `Farbe ${index + 1}`,
-    color: rgbToHex(color),
-    paths: traceMask(masks[index], raster.width, raster.height),
-  })).filter((layer) => layer.paths.length > 0);
-
-  return { layers, pathCount: layers.reduce((sum, layer) => sum + layer.paths.length, 0) };
+  const file = new File([state.pngBlob], svgFileName().replace(/\.svg$/, ".png"), { type: "image/png" });
+  if (!(await shareFile(file))) downloadBlob(file, file.name);
 }
 
-function quantize(pixels, count) {
-  if (!pixels.length) return [[0, 0, 0]];
-
-  const rgbBuckets = new Map();
-  for (const pixel of pixels) {
-    const key = pixel.map((value) => Math.round(value / 8)).join("|");
-    if (!rgbBuckets.has(key)) {
-      rgbBuckets.set(key, { count: 0, sum: [0, 0, 0] });
-    }
-    const bucket = rgbBuckets.get(key);
-    bucket.count += 1;
-    bucket.sum[0] += pixel[0];
-    bucket.sum[1] += pixel[1];
-    bucket.sum[2] += pixel[2];
+/** Öffnet das iOS-Teilen-Menü („In Dateien sichern“, „Bild sichern“, AirDrop …). */
+async function shareFile(file) {
+  if (!navigator.canShare || !navigator.canShare({ files: [file] })) return false;
+  try {
+    await navigator.share({ files: [file], title: file.name });
+  } catch (error) {
+    if (error.name !== "AbortError") return false;
   }
-
-  const candidates = [...rgbBuckets.values()].map((bucket) => {
-    const color = [
-      bucket.sum[0] / bucket.count,
-      bucket.sum[1] / bucket.count,
-      bucket.sum[2] / bucket.count,
-    ];
-    const [hue, saturation] = rgbToHsl(color);
-    return {
-      color,
-      count: bucket.count,
-      hueBucket: Math.round(hue / 30),
-      saturation,
-      score: bucket.count * (0.35 + saturation / 100),
-    };
-  });
-
-  const hueGroups = new Map();
-  for (const candidate of candidates) {
-    if (!hueGroups.has(candidate.hueBucket)) {
-      hueGroups.set(candidate.hueBucket, { score: 0, candidates: [] });
-    }
-    const group = hueGroups.get(candidate.hueBucket);
-    group.score += candidate.score;
-    group.candidates.push(candidate);
-  }
-
-  const selected = [];
-  for (const group of [...hueGroups.values()].sort((first, second) => second.score - first.score)) {
-    const representative = group.candidates.sort((first, second) => second.score - first.score)[0];
-    if (representative && selected.length < count) selected.push(representative);
-  }
-
-  for (const candidate of candidates.sort((first, second) => second.score - first.score)) {
-    if (selected.length >= count) break;
-    if (!selected.some((entry) => squaredDistance(entry.color, candidate.color) < 900)) {
-      selected.push(candidate);
-    }
-  }
-
-  return selected.map((entry) => entry.color).sort((first, second) => brightness(first) - brightness(second));
+  return true;
 }
 
-function isNearWhite(color) {
-  const [r, g, b] = color;
-  return Math.max(r, g, b) > 245 && Math.min(r, g, b) > 200;
-}
-
-function rgbToHsl([r, g, b]) {
-  const red = r / 255;
-  const green = g / 255;
-  const blue = b / 255;
-  const max = Math.max(red, green, blue);
-  const min = Math.min(red, green, blue);
-  const delta = max - min;
-
-  let hue = 0;
-  if (delta !== 0) {
-    if (max === red) hue = 60 * (((green - blue) / delta) % 6);
-    else if (max === green) hue = 60 * ((blue - red) / delta + 2);
-    else hue = 60 * ((red - green) / delta + 4);
-  }
-  if (hue < 0) hue += 360;
-
-  const lightness = (max + min) / 2;
-  const saturation = delta === 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
-  return [hue, saturation * 100, lightness * 100];
-}
-
-function squaredDistance(first, second) {
-  return (first[0] - second[0]) ** 2 + (first[1] - second[1]) ** 2 + (first[2] - second[2]) ** 2;
-}
-
-function brightness(color) {
-  return color[0] * 0.2126 + color[1] * 0.7152 + color[2] * 0.0722;
-}
-
-function rgbToHex(color) {
-  return `#${color.map((value) => Math.round(value).toString(16).padStart(2, "0")).join("")}`;
-}
-
-function traceMask(mask, width, height) {
-  const visited = new Uint8Array(mask.length);
-  const regions = [];
-
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const index = y * width + x;
-      if (!mask[index] || visited[index]) continue;
-
-      const queue = [[x, y]];
-      const region = [];
-      visited[index] = 1;
-
-      while (queue.length) {
-        const [cx, cy] = queue.pop();
-        region.push([cx, cy]);
-
-        const neighbors = [
-          [cx - 1, cy],
-          [cx + 1, cy],
-          [cx, cy - 1],
-          [cx, cy + 1],
-        ];
-
-        for (const [nx, ny] of neighbors) {
-          if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
-          const neighborIndex = ny * width + nx;
-          if (!mask[neighborIndex] || visited[neighborIndex]) continue;
-          visited[neighborIndex] = 1;
-          queue.push([nx, ny]);
-        }
-      }
-
-      if (region.length > 0) regions.push(region);
-    }
-  }
-
-  return regions;
-}
-
-function buildSvg(width, height, layers) {
-  const layerMarkup = layers.map((layer) => {
-    const rects = layer.paths.map((cells) => cells.map(([x, y]) => `<rect x="${x}" y="${y}" width="1" height="1"/>`).join("")).join("");
-    return `<g id="${layer.name.replaceAll(" ", "-").toLowerCase()}" data-layer="${layer.name}" fill="${layer.color}">${rects}</g>`;
-  }).join("");
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" aria-label="Vektorisierte Grafik" shape-rendering="crispEdges">${layerMarkup}</svg>`;
-}
-
-function displaySvg(svgText) {
-  elements.vectorStage.innerHTML = svgText;
-}
-
-function downloadSvg() {
-  const blob = new Blob([state.svgText], { type: "image/svg+xml;charset=utf-8" });
+function downloadBlob(blob, name) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${state.imageName || "vektorgrafik"}-vektor.svg`;
+  link.download = name;
+  document.body.append(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  // iOS Safari braucht die URL noch einen Moment nach dem Klick.
+  window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+/**
+ * Rendert die SVG schon nach der Umwandlung als PNG vor, damit das Teilen
+ * direkt im Tipp-Ereignis passieren kann (Safari verlangt das).
+ */
+function preparePng(id) {
+  elements.pngButton.disabled = true;
+  elements.pngButton.textContent = "PNG wird erstellt …";
+  const image = new Image();
+  image.addEventListener("load", () => {
+    if (id !== state.jobId) return;
+    const longest = Math.max(state.image.naturalWidth, state.image.naturalHeight);
+    const scale = Math.min(4096 / longest, Math.max(1, 2048 / longest));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(state.image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(state.image.naturalHeight * scale));
+    canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob) => {
+      if (id !== state.jobId || !blob) return;
+      state.pngBlob = blob;
+      elements.pngButton.disabled = false;
+      elements.pngButton.textContent = "Als PNG für Fotos";
+    }, "image/png");
+  });
+  image.src = state.svgUrl;
+}
+
+/* ---------- Vollbild ---------- */
+
+function openViewer() {
+  if (!state.svgUrl) return;
+  elements.viewerImage.src = state.svgUrl;
+  elements.viewer.showModal();
+}
+
+/* ---------- Installation als App ---------- */
+
+(function setupInstallHint() {
+  const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent)
+    || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const standalone = window.navigator.standalone || window.matchMedia("(display-mode: standalone)").matches;
+  let dismissed = false;
+  try { dismissed = localStorage.getItem("konturwerk-install-hint") === "hidden"; } catch { /* privat */ }
+  if (isIos && !standalone && !dismissed) elements.installHint.hidden = false;
+  elements.installHintClose.addEventListener("click", () => {
+    elements.installHint.hidden = true;
+    try { localStorage.setItem("konturwerk-install-hint", "hidden"); } catch { /* privat */ }
+  });
+})();
+
+if ("serviceWorker" in navigator && window.isSecureContext) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
 }
