@@ -131,3 +131,14 @@ test("Auch mit transparentem Hintergrund entstehen keine Fremdfarben an Linien",
   const olive = layers.find((l) => l.color === "#7d895a");
   assert.equal(olive.pixels, 40 * 60);
 });
+
+test("Versionsnummer ist in App, Service Worker und HTML gleich", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const read = (file) => fs.readFileSync(path.join(__dirname, "..", file), "utf8");
+  const version = read("app.js").match(/APP_VERSION = "([\d.]+)"/)[1];
+  assert.match(read("sw.js"), new RegExp(`CACHE = "konturwerk-${version.replaceAll(".", "\\.")}"`));
+  const html = read("index.html").match(/data-app-version>Version ([\d.]+)</g);
+  assert.equal(html.length, 2);
+  assert.ok(html.every((entry) => entry.endsWith(`Version ${version}<`)), html.join());
+});

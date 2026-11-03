@@ -79,3 +79,14 @@ bauen und auf ein iPhone übertragen. Ohne kostenpflichtiges Entwicklerkonto
 läuft sie dort nur 7 Tage. Die Web-App bietet für diesen Zweck dieselben
 Funktionen (Fotoauswahl, Vorschau, Speichern in „Dateien“, Offline-Betrieb)
 ohne diese Hürden.
+
+## Versionen
+
+Die aktuelle Version steht in der App oben neben dem Namen und in der
+Fußzeile. Bei einer Änderung `APP_VERSION` in `app.js`, `CACHE` in `sw.js` und
+die beiden Angaben in `index.html` gemeinsam erhöhen (ein Test prüft das).
+
+- **1.3.0** – Versionsnummer in der App sichtbar
+- **1.2.0** – keine Fremdfarben zwischen Linien bei transparentem Hintergrund
+- **1.1.0** – keine Fremdfarben durch graue Übergangspixel an Linienkanten
+- **1.0.0** – erste iPhone-Version mit echter Farb-Vektorisierung

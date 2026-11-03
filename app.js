@@ -1,5 +1,8 @@
 "use strict";
 
+// Bei jeder Änderung erhöhen – zusammen mit CACHE in sw.js (ein Test prüft das).
+const APP_VERSION = "1.3.0";
+
 const state = {
   image: null,
   imageName: "",
@@ -316,6 +319,10 @@ function openViewer() {
   elements.viewerImage.src = state.svgUrl;
   elements.viewer.showModal();
 }
+
+document.querySelectorAll("[data-app-version]").forEach((element) => {
+  element.textContent = `Version ${APP_VERSION}`;
+});
 
 /* ---------- Installation als App ---------- */
 
