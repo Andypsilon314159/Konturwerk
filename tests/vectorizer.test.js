@@ -117,3 +117,17 @@ test("Hohe Auflösung bleibt schnell", () => {
   const ms = Date.now() - t;
   assert.ok(ms < 8000, `${ms} ms`);
 });
+
+test("Auch mit transparentem Hintergrund entstehen keine Fremdfarben an Linien", () => {
+  const raster = makeRaster(120, 60, (x) => {
+    if (x >= 80) return [125, 137, 90];
+    if (x >= 64) return [250, 250, 250];
+    const phase = x % 10;
+    const v = phase < 3 ? 20 : phase === 3 || phase === 9 ? 130 : phase === 4 || phase === 8 ? 200 : 250;
+    return [v, v, v];
+  });
+  const { layers } = vectorize(raster, { colorCount: 3, smoothing: "pixel", minArea: 0, dropWhite: true });
+  assert.equal(layers.length, 2, layers.map((l) => l.color).join());
+  const olive = layers.find((l) => l.color === "#7d895a");
+  assert.equal(olive.pixels, 40 * 60);
+});

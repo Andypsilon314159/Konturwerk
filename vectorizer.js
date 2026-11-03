@@ -32,8 +32,16 @@
     if (mode === "monochrome") {
       ({ labels, palette } = thresholdLabels(data, width, height, threshold));
     } else {
-      ({ labels, palette } = colorLabels(data, width, height, colorCount, dropWhite));
+      ({ labels, palette } = colorLabels(data, width, height, colorCount));
       labels = majorityFilter(labels, width, height);
+      // Weiß erst ganz am Ende entfernen: Die Kantenkorrektur braucht es als
+      // Nachbarfarbe, um graue Übergänge zwischen Schwarz und Weiß zu erkennen.
+      if (dropWhite) {
+        const removed = palette.map(isNearWhite);
+        for (let i = 0; i < labels.length; i += 1) {
+          if (labels[i] >= 0 && removed[labels[i]]) labels[i] = TRANSPARENT;
+        }
+      }
     }
 
     // Häufigste Farbe zuerst (unten), damit kleinere Flächen darüber liegen.
@@ -72,7 +80,7 @@
     return { labels, palette: [[0, 0, 0]] };
   }
 
-  function colorLabels(data, width, height, colorCount, dropWhite) {
+  function colorLabels(data, width, height, colorCount) {
     const total = width * height;
     const sampleStep = Math.max(1, Math.floor(total / 60000));
     // Kantenpixel (Mischfarben durch Unschärfe/Antialiasing) nicht in die Palette
@@ -92,8 +100,7 @@
     }
     if (samples.length < edgeSamples.length / 4) samples = samples.concat(edgeSamples); // sehr feines Muster
 
-    let palette = kmeans(samples, colorCount);
-    const removed = palette.map((color) => dropWhite && isNearWhite(color));
+    const palette = kmeans(samples, colorCount);
 
     const labels = new Int16Array(total);
     // Cache auf 6 bit pro Kanal: identische Farben werden nur einmal zugeordnet.
@@ -104,7 +111,6 @@
       let label = cache[key];
       if (label === -2) {
         label = nearest(palette, data[p], data[p + 1], data[p + 2]);
-        if (removed[label]) label = TRANSPARENT;
         cache[key] = label;
       }
       labels[i] = label;
